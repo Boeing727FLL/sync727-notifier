@@ -1,0 +1,36 @@
+name: Notify
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  id-token: write   # OIDC token for Workload Identity Federation
+  contents: read
+
+concurrency:
+  group: notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/796625427827/locations/global/workloadIdentityPools/github/providers/github
+          service_account: sync727-notifier@sync-727-1f91f.iam.gserviceaccount.com
+
+      - run: node src/index.js
