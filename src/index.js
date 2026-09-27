@@ -293,6 +293,18 @@ async function handleAttendance(subs, watermark) {
 // ---------- main ----------
 
 (async () => {
+  // One-device diagnostic, never writes an in-app announcement or broadcasts.
+  // Remove this branch after the acceptance test.
+  if (process.env.TEST_TARGET_UID === 'member_יובל') {
+    const target = await db.collection('push_subscriptions').doc('member_יובל').get();
+    if (!target.exists || !target.data().fcmToken) throw new Error('test target token not registered');
+    const r = await sendPush([{ id: target.id, ...target.data() }],
+      'SYNC 727', 'בדיקת התראה', SITE + '/dashboard');
+    console.log('single-device test:', JSON.stringify(r));
+    if (r.sent !== 1) throw new Error('single-device test was not accepted by FCM');
+    return;
+  }
+  if (process.env.TEST_TARGET_UID) throw new Error('unsupported test target');
   const runStart = Date.now();
   const il = ilParts();
   console.log(`notifier run at ${new Date(runStart).toISOString()} (IL ${il.dateStr} ${String(Math.floor(il.minutes / 60)).padStart(2, '0')}:${String(il.minutes % 60).padStart(2, '0')})`);
