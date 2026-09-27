@@ -301,10 +301,15 @@ async function handleAttendance(subs, watermark) {
   if (process.env.TEST_TARGET_UID === 'member_יובל') {
     const target = await db.collection('push_subscriptions').doc('member_יובל').get();
     if (!target.exists || !target.data().fcmToken) throw new Error('test target token not registered');
-    const r = await sendPush([{ id: target.id, ...target.data() }],
-      'SYNC 727', 'בדיקת התראה', SITE + '/dashboard');
-    console.log('single-device test:', JSON.stringify(r));
-    if (r.sent !== 1) throw new Error('single-device test was not accepted by FCM');
+    const response = await messaging.sendEachForMulticast({
+      tokens: [target.data().fcmToken],
+      notification: { title: 'SYNC 727', body: 'בדיקת התראה' }
+    });
+    console.log('single-device test:', JSON.stringify({ sent: response.successCount, failed: response.failureCount }));
+    for (const r of response.responses) {
+      if (!r.success) console.error('FCM test error:', r.error?.code, r.error?.message, r.error?.errorInfo);
+    }
+    if (response.successCount !== 1) throw new Error('single-device test was not accepted by FCM');
     return;
   }
   if (process.env.TEST_TARGET_UID) throw new Error('unsupported test target');
