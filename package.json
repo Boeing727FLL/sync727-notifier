@@ -1,0 +1,12 @@
+{
+  "name": "sync727-notifier",
+  "version": "1.0.0",
+  "description": "FCM push notification dispatcher for the Sync 727 team app (Boeing 727 FLL). Runs on GitHub Actions with Workload Identity Federation.",
+  "private": false,
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.5.0"
+  }
+}
