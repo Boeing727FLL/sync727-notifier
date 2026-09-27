@@ -248,7 +248,7 @@ async function handleParentShifts(subs, il) {
     if (il.dateStr === shiftDateStr(d.date, -1) && il.minutes >= 19 * 60) {
       const key = `shift:${doc.id}:eve`;
       if (!(await alreadySent(key))) {
-        const r = await sendPush(parent, 'תזכורת: משמרת הורים מחר 👋',
+        const r = await sendPush(parent, 'תזכורת: משמרת הורים מחר',
           `מחר ${d.date} את/ה במשמרת ${timeRange}`, `${SITE}/dashboard`);
         await markSent(key, { kind: 'shift_eve', pushed: r.sent });
         n++;
@@ -259,7 +259,7 @@ async function handleParentShifts(subs, il) {
     if (il.dateStr === d.date && il.minutes >= 7 * 60 + 30 && il.minutes < 12 * 60) {
       const key = `shift:${doc.id}:morning`;
       if (!(await alreadySent(key))) {
-        const r = await sendPush(parent, 'תזכורת: משמרת הורים היום 🕢',
+        const r = await sendPush(parent, 'תזכורת: משמרת הורים היום',
           `היום ${d.date} את/ה במשמרת ${timeRange}`, `${SITE}/dashboard`);
         await markSent(key, { kind: 'shift_morning', pushed: r.sent });
         n++;
@@ -291,6 +291,31 @@ async function handleAttendance(subs, watermark) {
     console.log(`attendance ${doc.id} -> ${r.sent} mentor devices`);
   }
   return n;
+}
+
+// The only time-driven attendance reminder. The dashboard's meeting schedule is
+// the source of truth; a special event adds a meeting and a cancellation overrides
+// a regular meeting day. One push per local calendar day, students only.
+async function handleMeetingAttendanceReminder(subs, il) {
+  if (il.minutes < 13 * 60 || il.minutes >= 14 * 60) return 0;
+  const settings = await db.collection('global_settings').doc('main').get();
+  const schedule = settings.data()?.meeting_schedule;
+  if (!schedule) { console.log('attendance reminder: no meeting schedule'); return 0; }
+  const weekday = new Date(`${il.dateStr}T12:00:00Z`).getUTCDay();
+  const regularDay = Array.isArray(schedule.meetingDays) && schedule.meetingDays.includes(weekday);
+  const special = schedule.specialEvents?.find(e => e.date === il.dateStr);
+  const cancelled = special?.type === 'cancelled' && regularDay;
+  const meeting = !cancelled && (special?.type === 'event' || (regularDay && !special));
+  if (!cancelled && !meeting) return 0;
+  const key = `attendance-reminder:${il.dateStr}`;
+  if (await alreadySent(key)) return 0;
+  const students = subs.filter(s => s.role === 'member');
+  const title = cancelled ? 'אין מפגש היום' : 'יש מפגש היום!';
+  const body = cancelled ? 'המפגש של היום בוטל' : 'תגידו אם אתם מגיעים';
+  const r = await sendPush(students, title, body, `${SITE}/dashboard`);
+  await markSent(key, { kind: cancelled ? 'meeting_cancelled' : 'attendance_reminder', pushed: r.sent });
+  console.log(`attendance reminder ${il.dateStr}: ${cancelled ? 'cancelled' : 'meeting'} -> ${r.sent} student devices`);
+  return 1;
 }
 
 // ---------- main ----------
@@ -348,6 +373,7 @@ async function handleAttendance(subs, watermark) {
   counts.newTasks = await handleNewTasks(subs, watermark);
   counts.taskDeadlines = await handleTaskDeadlines(subs, il);
   counts.parentShifts = await handleParentShifts(subs, il);
+  counts.meetingAttendanceReminder = await handleMeetingAttendanceReminder(subs, il);
   counts.attendance = await handleAttendance(subs, watermark);
 
   await metaRef.set({ lastRunAt: runStart }, { merge: true });
