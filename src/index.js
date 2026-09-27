@@ -86,6 +86,9 @@ async function sendPush(subs, title, body, link) {
       webpush: { fcmOptions: { link } }
     });
     sent += res.successCount;
+    for (const response of res.responses) {
+      if (!response.success) console.error('FCM delivery error:', response.error?.code, response.error?.message);
+    }
     const toPrune = [];
     res.responses.forEach((r, idx) => {
       const code = r.error && r.error.code;
