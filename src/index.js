@@ -309,6 +309,21 @@ async function handleAttendance(subs, watermark) {
       console.log('single-device test accepted by FCM:', messageId);
     } catch (err) {
       console.error('FCM test send error:', err.code, err.message, err.errorInfo);
+      const credentials = admin.app().options.credential;
+      const access = await credentials.getAccessToken();
+      const raw = await fetch('https://fcm.googleapis.com/v1/projects/sync-727-1f91f/messages:send', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${access.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: { token: target.data().fcmToken,
+          notification: { title: 'SYNC 727', body: 'בדיקת התראה' } } })
+      });
+      const result = await raw.json();
+      console.error('FCM HTTP result:', raw.status, JSON.stringify({
+        status: result.error?.status, message: result.error?.message,
+        details: result.error?.details?.map(d => ({ type: d['@type'], errorCode: d.errorCode,
+          fieldViolations: d.fieldViolations?.map(v => ({ field: v.field, description: v.description })) }))
+      }));
+      if (raw.ok && result.name) { console.log('single-device test accepted by FCM:', result.name); return; }
       throw err;
     }
     return;
