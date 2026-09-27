@@ -7,8 +7,6 @@ on:
         description: One-device acceptance test UID (leave blank for normal dispatch)
         required: false
         type: string
-  schedule:
-    - cron: '7,22,37,52 * * * *'
 
 permissions:
   id-token: write   # OIDC token for Workload Identity Federation
