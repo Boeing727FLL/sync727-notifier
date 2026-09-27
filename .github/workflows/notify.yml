@@ -2,6 +2,11 @@ name: Notify
 
 on:
   workflow_dispatch:
+    inputs:
+      test_target_uid:
+        description: One-device acceptance test UID (leave blank for normal dispatch)
+        required: false
+        type: string
   schedule:
     - cron: '*/15 * * * *'
 
@@ -34,3 +39,5 @@ jobs:
           service_account: sync727-notifier@sync-727-1f91f.iam.gserviceaccount.com
 
       - run: node src/index.js
+        env:
+          TEST_TARGET_UID: ${{ inputs.test_target_uid }}
