@@ -281,8 +281,8 @@ async function handleAttendance(subs, watermark) {
     if (!d.status || updated == null || updated <= watermark - SKEW_MS) continue;
     const key = `att:${doc.id}:${updated}`;
     if (await alreadySent(key)) continue;
-    if (doc.id === d.uid) { /* no-op, id is the uid */ }
-    const r = await sendPush(mentors.filter(m => m.id !== doc.id),
+    const memberId = d.user_id || d.uid || doc.id;
+    const r = await sendPush(mentors.filter(m => m.id !== memberId),
       'עדכון נוכחות ✅',
       `${d.name || 'חבר צוות'} סימן/ה: ${d.status}${d.time ? ` (${d.time})` : ''}`,
       `${SITE}/dashboard`);
